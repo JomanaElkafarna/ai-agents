@@ -426,6 +426,7 @@ def execute_write_action(db, prompt):
     return "This write operation is not allowed."
 
 
+
 def run_orchestrator_plan(db, prompt):
 
     lower_prompt = prompt.lower()
@@ -453,34 +454,22 @@ def run_orchestrator_plan(db, prompt):
     )
 
     if is_bulk_delete:
+        print("[TRACE] Blocked bulk delete request.")
         return (
             "I can't delete all skills in one operation. "
             "Please name one specific skill to delete."
         )
 
-    # Exact database questions should use the read expert.
     exact_keywords = (
-        "list all",
-        "count",
-        "how many",
-        "show all",
-        "give me all",
-        "exact number"
+        "list all", "count", "how many",
+        "show all", "give me all", "exact number"
     )
 
-    # Semantic questions use embedding search.
     semantic_keywords = (
-        "similar",
-        "related",
-        "conceptual",
-        "alternative",
-        "msu",
-        "michigan state",
-        "ai skills",
-        "machine learning",
-        "what skills relate",
-        "meaning",
-        "abbreviation"
+        "similar", "related", "conceptual",
+        "alternative", "msu", "michigan state",
+        "ai skills", "machine learning",
+        "what skills relate", "meaning", "abbreviation"
     )
 
     is_exact = any(
@@ -492,7 +481,10 @@ def run_orchestrator_plan(db, prompt):
     )
 
     if is_semantic and not is_exact:
-        print("[TRACE] Route: semantic search.")
+        print(
+            "[TRACE] Route: semantic search. "
+            "Reason: semantic keywords matched."
+        )
 
         try:
             results = semantic_search(
@@ -502,12 +494,27 @@ def run_orchestrator_plan(db, prompt):
             )
 
             if not results:
+                print("[TRACE] Semantic search returned no records.")
                 return "No matching records were found."
+
+            print("[TRACE] Semantic search results (ranked):")
+
+            for item in results:
+                print(
+                    f"[TRACE] table={item.get('table_name')} "
+                    f"id={item.get('record_id')} "
+                    f"score={item.get('score')}"
+                )
 
             relevant = [
                 item for item in results
                 if item.get("score", 0) >= SEMANTIC_MIN_SCORE
             ]
+
+            print(
+                f"[TRACE] Relevant results above threshold "
+                f"{SEMANTIC_MIN_SCORE}: {len(relevant)}"
+            )
 
             if not relevant:
                 return (
@@ -540,10 +547,20 @@ def run_orchestrator_plan(db, prompt):
             )
 
         except Exception as error:
+            print(f"[TRACE] Semantic search error: {error}")
             return f"Semantic search failed: {error}"
 
-    # Generate an expert execution plan.
-    print("[TRACE] Route: orchestrator.")
+    if is_exact:
+        print(
+            "[TRACE] Route: orchestrator. "
+            "Reason: exact database question."
+        )
+    else:
+        print(
+            "[TRACE] Route: orchestrator. "
+            "Reason: no semantic keyword matched."
+        )
+
     plan_text = send_message(
         prompt,
         system_prompt=(
@@ -578,11 +595,7 @@ def run_orchestrator_plan(db, prompt):
         flags=re.IGNORECASE
     )
 
-    plan_text = re.sub(
-        r"\s*```\s*$",
-        "",
-        plan_text
-    ).strip()
+    plan_text = re.sub(r"\s*```\s*$", "", plan_text).strip()
 
     try:
         plan = json.loads(plan_text)
@@ -596,7 +609,9 @@ def run_orchestrator_plan(db, prompt):
         results = []
         previous_results = []
 
-        for item in plan:
+        print(f"[TRACE] Plan contains {len(plan)} step(s).")
+
+        for step_number, item in enumerate(plan, start=1):
 
             if not isinstance(item, dict):
                 return "Invalid expert request format."
@@ -605,7 +620,6 @@ def run_orchestrator_plan(db, prompt):
                 return "The Orchestrator returned invalid step fields."
 
             expert_role = item.get("role")
-            print(f"[TRACE] Executing expert: {expert_role}")
             expert_message = item.get("message")
 
             if expert_role not in (
@@ -621,9 +635,19 @@ def run_orchestrator_plan(db, prompt):
             ):
                 return "The Orchestrator returned an empty message."
 
+            print(
+                f"[TRACE] Step {step_number}/{len(plan)}: "
+                f"{expert_role}"
+            )
+
             contextual_message = expert_message
 
             if previous_results:
+                print(
+                    "[TRACE] Passing previous step results "
+                    "to the next expert."
+                )
+
                 contextual_message = (
                     "Previous expert step results:\n"
                     + "\n\n".join(previous_results)
@@ -649,6 +673,7 @@ def run_orchestrator_plan(db, prompt):
                     "Orchestrator error:"
                 )
             ):
+                print(f"[TRACE] Step {step_number} failed.")
                 return result
 
             if result.strip() == "[]":
@@ -665,11 +690,15 @@ def run_orchestrator_plan(db, prompt):
             results.append(step_result)
             previous_results.append(step_result)
 
-            # Stop when a write action is awaiting confirmation.
             if getattr(db, "pending_action", None):
+                print(
+                    "[TRACE] Write action is pending user approval. "
+                    "Stopping execution."
+                )
                 return result
 
-        # Synthesize the final answer after all expert steps finish.
+        print("[TRACE] All expert steps completed.")
+
         synthesis_prompt = (
             "Original user question:\n"
             + prompt

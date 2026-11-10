@@ -1,9 +1,9 @@
-﻿# Design and Testing Report â€” Homework 2
+# Design and Testing Report — Homework 2
 
 **Name:** Jumana Alkafarna  
-**GitHub fork/branch URL:**  
+**GitHub fork/branch URL:** https://github.com/JomanaElkafarna/ai-agents/tree/HW2/Jumana 
 **Demo video link:**  
-**Command that runs my tests:** python -m unittest discover -s "homework 2\tests" -v (5 approval tests passed).
+**Command that runs my tests:** `python -m unittest discover -s "homework 2\tests" -v` (21 automated tests passed: 5 approval tests, 8 embedding/search tests, 1 persistence test, 1 fixture-loading test, and 6 orchestrator tests).
 
 ## 0. Starting point
 
@@ -42,14 +42,14 @@ flowchart TD
 
 | What | File / function / table |
 |---|---|
-| Semantic search | `flask_app/utils/embeddings.py` â€” `semantic_search()` |
-| Orchestrator and expert execution | `flask_app/utils/llm.py` â€” `run_orchestrator_plan()` |
-| Read-only database queries | `flask_app/utils/llm.py` â€” `execute_read_query()` |
-| Write action generation | `flask_app/utils/llm.py` â€” `execute_write_action()` |
-| Approval handling | `flask_app/utils/llm.py` â€” `process_pending_action()` |
+| Semantic search | `flask_app/utils/embeddings.py` — `semantic_search()` |
+| Orchestrator and expert execution | `flask_app/utils/llm.py` — `run_orchestrator_plan()` |
+| Read-only database queries | `flask_app/utils/llm.py` — `execute_read_query()` |
+| Write action generation | `flask_app/utils/llm.py` — `execute_write_action()` |
+| Approval handling | `flask_app/utils/llm.py` — `process_pending_action()` |
 | Embeddings storage | SQLite `embeddings` table |
 | Configuration example | `homework 2/.env.example` |
-| Automated tests | tests/test_pending_actions.py — 5 tests passed. |
+| Automated tests | Five test files covering approval handling (5), embedding/search (8), persistence (1), fixture loading (1), and orchestration (6): 21 tests passed. |
 
 ## 3. Three decisions I made
 
@@ -61,19 +61,19 @@ flowchart TD
 
 ## 4. Testing
 
-The following tests were executed manually using PowerShell commands. They are not part of an automated test suite.
+The following scenarios were executed manually using PowerShell commands. Automated unit-test coverage is summarized above and includes the scenarios described in the test files.
 
 | Scenario / what I tested | Expected result | Actual result | Status | Evidence |
 |---|---|---|---|---|
 | Application startup | Database initializes and embeddings synchronize | Application startup completed successfully | Pass | Terminal output: `APPLICATION STARTUP SUCCESS` |
-| S1 â€” Ask about experience at MSU | Do not confuse a similar institution with MSU | System reported that no MSU experience was found | Not passed | PowerShell test output |
-| S4 â€” Ask for education institution and department | Execute two dependent database read steps | Returned Arab Open University and Computer Science | Pass | PowerShell test output |
-| S5 â€” Add a skill | Ask for confirmation before saving | System created a pending action and requested confirmation | Pass | PowerShell test output |
-| S5 â€” Reject the addition | Cancel without changing the database | Returned `Cancelled. No database changes were made.` | Pass | PowerShell test output |
-| S8 â€” Unclear response (`maybe`) | Keep the pending action waiting for confirmation | Pending action remained unchanged | Pass | PowerShell test output |
-| S8 â€” Change the subject | Cancel the pending action | Pending action became `None` | Pass | PowerShell test output |
-| S10 â€” Simulated embedding failure | Report the failure without inventing results | Returned `Semantic search failed: SIMULATED EMBEDDING FAILURE` | Pass | PowerShell test output |
-| S11 â€” Ask about missing Harvard experience | Report missing information honestly | Returned that the information was not found in the resume database | Pass | PowerShell test output |
+| S1 — Ask about experience at MSU | Do not confuse a similar institution with MSU | System reported that no MSU experience was found | Pass | PowerShell test output |
+| S4 — Ask for education institution and department | Execute two dependent database read steps | Returned Arab Open University and Computer Science | Pass | PowerShell test output |
+| S5 — Add a skill | Ask for confirmation before saving | System created a pending action and requested confirmation | Pass | PowerShell test output |
+| S5 — Reject the addition | Cancel without changing the database | Returned `Cancelled. No database changes were made.` | Pass | PowerShell test output |
+| S8 — Unclear response (`maybe`) | Keep the pending action waiting for confirmation | Pending action remained unchanged | Pass | PowerShell test output |
+| S8 — Change the subject | Cancel the pending action | Pending action became `None` | Pass | PowerShell test output |
+| S10 — Simulated embedding failure | Report the failure without inventing results | Returned `Semantic search failed: SIMULATED EMBEDDING FAILURE` | Pass | PowerShell test output |
+| S11 — Ask about missing Harvard experience | Report missing information honestly | Returned that the information was not found in the resume database | Pass | PowerShell test output |
 
 **Testing note:** The approval, unclear-response, and cancellation tests included direct setup of a pending action in the test command. The skill-addition request also confirmed that the system asks for approval before saving.
 
@@ -83,7 +83,7 @@ The following tests were executed manually using PowerShell commands. They are n
 
 1. **Limited write operations:** The system supports adding skills and deleting a specific skill after confirmation. Editing other records is not implemented. I would improve this by adding validated operations with explicit confirmation.
 
-2. **Limited automated coverage:** Five automated tests cover pending-action approval handling. The complete S1–S11 end-to-end suite is not yet implemented.
+2. **Limited automated coverage:** Twenty-one automated tests cover pending-action approval handling, embedding validation, cosine similarity, record embedding, semantic-search ranking and limits, embedding persistence, fixture loading, orchestration routing, dependent steps, and bulk-delete blocking. The complete S1–S11 end-to-end suite is not yet implemented.
 
 3. **Skill-level conversion:** During testing, the requested level `Beginner` appeared in the confirmation message as `3`. This needs further investigation to ensure the displayed level matches the user's requested level.
 
@@ -119,4 +119,6 @@ python "homework 2\app.py"
 Open the local Flask address shown in the terminal and test questions through the chat interface.
 
 **Test data reset:** A separate safe test-data reset command has not been implemented. Do not delete the database or change database initialization settings without backing up the data first.
+
+
 
